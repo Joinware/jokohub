@@ -57,8 +57,12 @@
     launcher.className = "jh-launcher";
     launcher.style.background = primary;
     launcher.style[position === "left" ? "left" : "right"] = "20px";
-    launcher.textContent = open ? "×" : "💬";
-    launcher.setAttribute("aria-label", "Open chat");
+    launcher.innerHTML = open
+      ? '<span style="font-size:28px;line-height:1">×</span>'
+      : '<svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7A2.5 2.5 0 0 1 17.5 16H9l-4 3.5V6.5Z" fill="currentColor"/></svg>';
+    launcher.setAttribute("aria-label", open ? "Close chat" : "Open chat");
+    launcher.style.display = "grid";
+    launcher.style.placeItems = "center";
     launcher.onclick = () => {
       open = !open;
       render();
