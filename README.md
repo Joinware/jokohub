@@ -10,7 +10,7 @@ Niche: Senegal & Gambia SMB desks. Sibling to [WoLink](https://github.com/Joinwa
 - Shared agent inbox (assign / resolve / reply)
 - Orgs + owner/agent seats
 - Stripe Checkout + portal + webhook **scaffold** (test keys via `.env.local`)
-- Demo mode so you can run without Supabase
+- Demo mode so you can run without Supabase (**explicit** `DEMO_MODE=true` only)
 
 ## Quick start (demo mode)
 

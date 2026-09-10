@@ -7,14 +7,15 @@
 - **Billing:** Stripe test → live when ready
 - **Widget:** static `public/widget.js` (built by `npm run build:widget`)
 
-Demo mode (`DEMO_MODE=true`) uses an in-memory store and needs no cloud accounts.
+Demo mode (`DEMO_MODE=true` / `NEXT_PUBLIC_DEMO_MODE=true`) uses an in-memory store and needs no cloud accounts. It is **opt-in only** — a missing Supabase URL does not turn demo on. Never deploy with demo enabled.
 
 ## 1. Supabase
 
 1. Create a project.
 2. Run [`supabase/migrations/001_init.sql`](../supabase/migrations/001_init.sql) in the SQL editor.
 3. Copy Project URL, anon key, and service role key into `.env.local` / Vercel env.
-4. Set `DEMO_MODE=false` and `NEXT_PUBLIC_DEMO_MODE=false`.
+4. Set `DEMO_MODE=false` and `NEXT_PUBLIC_DEMO_MODE=false` (omit them or set false — do not leave demo on).
+5. Confirm `NEXT_PUBLIC_SUPABASE_URL` and keys are present before going live; the app fails closed without them when demo is off.
 
 ## 2. Stripe (test)
 

@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import { isDemoMode } from "./config";
+import { assertSupabaseConfigured, isDemoMode } from "./config";
 import { demoOrgForUser, demoUserFromToken } from "./demo-store";
 import { createClient } from "./supabase/server";
 import type { Organization, SessionUser } from "./types";
@@ -11,6 +11,7 @@ export async function getSessionUser(): Promise<SessionUser | null> {
     const jar = await cookies();
     return demoUserFromToken(jar.get(COOKIE)?.value);
   }
+  assertSupabaseConfigured();
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
   if (!data.user?.email) return null;
@@ -31,6 +32,7 @@ export async function getActiveOrg(): Promise<{
     return { user, org: pair.org, role: pair.membership.role };
   }
 
+  assertSupabaseConfigured();
   const supabase = await createClient();
   const { data: membership } = await supabase
     .from("org_members")

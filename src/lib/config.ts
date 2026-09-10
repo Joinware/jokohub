@@ -1,9 +1,18 @@
 export function isDemoMode(): boolean {
   return (
     process.env.DEMO_MODE === "true" ||
-    process.env.NEXT_PUBLIC_DEMO_MODE === "true" ||
-    !process.env.NEXT_PUBLIC_SUPABASE_URL
+    process.env.NEXT_PUBLIC_DEMO_MODE === "true"
   );
+}
+
+/** Production path: demo must be off and Supabase public URL set. */
+export function assertSupabaseConfigured(): void {
+  if (isDemoMode()) return;
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    throw new Error(
+      "Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY, or set DEMO_MODE=true for local demo only."
+    );
+  }
 }
 
 export const PRODUCT_NAME =
