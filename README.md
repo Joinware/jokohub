@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# JokoHub
 
-## Getting Started
+**JokoHub** is Joinware’s live-chat product: website widget + shared team inbox + seat billing.
 
-First, run the development server:
+Niche: Senegal & Gambia SMB desks. Sibling to [WoLink](https://github.com/Joinware/wolink) (translation bridge) — WoLink is **not** in v1.
+
+## Paid-beta scope
+
+- Embeddable chat widget (`/widget.js`)
+- Shared agent inbox (assign / resolve / reply)
+- Orgs + owner/agent seats
+- Stripe Checkout + portal + webhook **scaffold** (test keys via `.env.local`)
+- Demo mode so you can run without Supabase
+
+## Quick start (demo mode)
 
 ```bash
+cp .env.example .env.local
+npm install
+npm run build:widget
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- Marketing: http://localhost:3000
+- Inbox login: `owner@demo.jokohub.app` / `demo1234`
+- Widget demo: http://localhost:3000/demo-widget
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Production path
 
-## Learn More
+See [docs/DEPLOY.md](./docs/DEPLOY.md). Apply `supabase/migrations/001_init.sql`, set `DEMO_MODE=false`, add Supabase + Stripe test keys.
 
-To learn more about Next.js, take a look at the following resources:
+## Support
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Default contact: `support@jokohub.app` (override with `NEXT_PUBLIC_SUPPORT_EMAIL`).
