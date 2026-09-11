@@ -15,6 +15,7 @@ Done:
 - [x] Pilot seed (`owner@jokohub.app` / `pk_live_pilot_dakar_01`)
 - [x] Demo storefront uses pilot widget key (not `pk_demo_jokohub`)
 - [x] Dashboard `force-dynamic` for auth-gated pages
+- [x] Realtime agent inbox (Supabase postgres_changes) + widget broadcast refresh
 
 Open / ops:
 
@@ -32,7 +33,7 @@ Open / ops:
 | P0 | Auth + env polish | Unblocks desks signing up without your laptop |
 | P0 | Stripe test | Checkout / portal / webhook → seat_limit |
 | P1 | Team invites / multi-seat | Owner invites agents; seat_limit enforcement |
-| P1 | Realtime inbox/widget | Replace ~3s polling; schema already publishes `messages` + `conversations` |
+| P1 | Realtime inbox/widget | Inbox: postgres_changes. Widget: broadcast + slow poll fallback |
 | P2 | **RCS-lite** | See below — not carrier RCS |
 | P3 | Optional WoLink in inbox | Translate bridge; sibling product, optional |
 
@@ -66,7 +67,7 @@ APIs (`/api/widget/messages`, inbox reply routes) and both UIs must understand `
 
 ### Phase A — Realtime + receipts (smallest high-value set)
 
-1. **Realtime** — Subscribe to Supabase Realtime on `messages` / `conversations` in agent inbox and widget; keep poll as fallback.
+1. **Realtime** — ✅ Inbox subscribes to `messages` / `conversations`; widget uses broadcast `jh-convo-{id}` + 15s poll fallback.
 2. **Delivery / read receipts** — Set `delivered_at` when widget receives a message; `read_at` when panel is open / message visible. Show ticks or “Seen” in inbox + widget.
 3. **Typing indicator** — Ephemeral channel or short-lived presence row; show “Visitor is typing…” / “Agent is typing…”.
 

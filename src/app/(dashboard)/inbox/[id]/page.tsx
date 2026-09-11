@@ -1,7 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
+import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { useOrgRealtimeRefresh } from "@/hooks/use-org-realtime-refresh";
 import type { Conversation, Message } from "@/lib/types";
 
 export default function ConversationPage({
@@ -14,33 +16,37 @@ export default function ConversationPage({
   const [messages, setMessages] = useState<Message[]>([]);
   const [body, setBody] = useState("");
   const [error, setError] = useState("");
+  const orgId = useActiveOrgId();
 
   useEffect(() => {
     params.then((p) => setId(p.id));
   }, [params]);
 
-  useEffect(() => {
+  const load = useCallback(async () => {
     if (!id) return;
-    let cancelled = false;
-    async function load() {
-      const res = await fetch(`/api/conversations/${id}`);
-      const data = await res.json();
-      if (!res.ok) {
-        if (!cancelled) setError(data.error || "Failed to load");
-        return;
-      }
-      if (!cancelled) {
-        setConversation(data.conversation);
-        setMessages(data.messages || []);
-      }
+    const res = await fetch(`/api/conversations/${id}`);
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Failed to load");
+      return;
     }
-    load();
-    const t = setInterval(load, 3000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
+    setError("");
+    setConversation(data.conversation);
+    setMessages(data.messages || []);
   }, [id]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useOrgRealtimeRefresh({
+    orgId,
+    conversationId: id || null,
+    onRefresh: () => {
+      void load();
+    },
+    fallbackMs: process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? 3000 : 30_000,
+  });
 
   async function send(e: FormEvent) {
     e.preventDefault();
@@ -56,7 +62,10 @@ export default function ConversationPage({
       return;
     }
     setBody("");
-    setMessages((prev) => [...prev, data.message]);
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === data.message.id)) return prev;
+      return [...prev, data.message];
+    });
   }
 
   async function setStatus(status: "open" | "resolved") {

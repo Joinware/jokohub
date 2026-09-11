@@ -35,6 +35,7 @@ export async function GET(req: Request) {
       orgId: org.id,
       name: org.name,
       settings: org.widgetSettings,
+      realtime: null,
     });
   }
 
@@ -52,9 +53,16 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Origin not allowed" }, { status: 403 });
   }
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || null;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null;
+
   return NextResponse.json({
     orgId: org.id,
     name: org.name,
     settings: org.widget_settings,
+    realtime:
+      supabaseUrl && supabaseAnonKey
+        ? { url: supabaseUrl, anonKey: supabaseAnonKey }
+        : null,
   });
 }

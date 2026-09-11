@@ -1,31 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { useActiveOrgId } from "@/hooks/use-active-org-id";
+import { useOrgRealtimeRefresh } from "@/hooks/use-org-realtime-refresh";
 import type { Conversation } from "@/lib/types";
 
 export default function InboxPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [error, setError] = useState("");
+  const orgId = useActiveOrgId();
+
+  const load = useCallback(async () => {
+    const res = await fetch("/api/conversations");
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Failed to load");
+      return;
+    }
+    setError("");
+    setConversations(data.conversations || []);
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      const res = await fetch("/api/conversations");
-      const data = await res.json();
-      if (!res.ok) {
-        if (!cancelled) setError(data.error || "Failed to load");
-        return;
-      }
-      if (!cancelled) setConversations(data.conversations || []);
-    }
-    load();
-    const t = setInterval(load, 4000);
-    return () => {
-      cancelled = true;
-      clearInterval(t);
-    };
-  }, []);
+    void load();
+  }, [load]);
+
+  useOrgRealtimeRefresh({
+    orgId,
+    onRefresh: () => {
+      void load();
+    },
+    // Demo mode has no realtime — poll a bit faster there.
+    fallbackMs: process.env.NEXT_PUBLIC_DEMO_MODE === "true" ? 4000 : 30_000,
+  });
 
   return (
     <section className="jh-panel grid min-h-[70vh] overflow-hidden rounded-3xl md:grid-cols-[320px_1fr]">

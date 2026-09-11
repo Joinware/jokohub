@@ -8,6 +8,7 @@ import {
   demoOpenOrCreateConversation,
   demoOrgByWidgetKey,
 } from "@/lib/demo-store";
+import { notifyConversationRefresh } from "@/lib/notify-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const postSchema = z.object({
@@ -238,6 +239,8 @@ export async function POST(req: Request) {
       status: "open",
     })
     .eq("id", convo.id);
+
+  await notifyConversationRefresh(convo.id);
 
   return NextResponse.json({
     conversationId: convo.id,

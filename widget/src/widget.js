@@ -19,6 +19,10 @@
   let primary = "#0A3D3A";
   let greeting = "Hi — how can we help?";
   let position = "right";
+  let realtimeCfg = null;
+  let supabaseClient = null;
+  let realtimeChannel = null;
+  let pollTimer = null;
 
   const root = document.createElement("div");
   root.id = "jokohub-root";
@@ -50,6 +54,60 @@
     .jh-form button { border: 0; border-radius: 12px; padding: 0 14px; background: var(--jh-color, #0A3D3A); color: #fff; font-weight: 600; cursor: pointer; }
   `;
   document.head.appendChild(style);
+
+  function loadSupabaseJs() {
+    if (window.supabase && window.supabase.createClient) {
+      return Promise.resolve(window.supabase);
+    }
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector("script[data-jokohub-supabase]");
+      if (existing) {
+        existing.addEventListener("load", () => resolve(window.supabase));
+        existing.addEventListener("error", reject);
+        return;
+      }
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js";
+      s.async = true;
+      s.dataset.jokohubSupabase = "1";
+      s.onload = () => resolve(window.supabase);
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureRealtime(convoId) {
+    if (!realtimeCfg || !convoId) return;
+    try {
+      const sb = await loadSupabaseJs();
+      if (!supabaseClient) {
+        supabaseClient = sb.createClient(realtimeCfg.url, realtimeCfg.anonKey, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+      }
+      const topic = `jh-convo-${convoId}`;
+      if (realtimeChannel && realtimeChannel.topic === `realtime:${topic}`) return;
+      if (realtimeChannel) {
+        await supabaseClient.removeChannel(realtimeChannel);
+        realtimeChannel = null;
+      }
+      realtimeChannel = supabaseClient
+        .channel(topic)
+        .on("broadcast", { event: "refresh" }, () => {
+          if (open) refreshMessages();
+        })
+        .subscribe();
+    } catch (err) {
+      console.warn("[JokoHub] realtime unavailable", err);
+    }
+  }
+
+  function startPoll(ms) {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(() => {
+      if (open) refreshMessages();
+    }, ms);
+  }
 
   function render() {
     root.innerHTML = "";
@@ -149,6 +207,7 @@
     const data = await res.json();
     conversationId = data.conversationId;
     paintMessages(data.messages || []);
+    if (conversationId) void ensureRealtime(conversationId);
   }
 
   async function bootstrap() {
@@ -160,11 +219,11 @@
       primary = (data.settings && data.settings.primaryColor) || primary;
       greeting = (data.settings && data.settings.greeting) || greeting;
       position = (data.settings && data.settings.position) || position;
+      realtimeCfg = data.realtime || null;
     }
     render();
-    setInterval(() => {
-      if (open) refreshMessages();
-    }, 3000);
+    // Slow poll as safety net; realtime broadcast drives fast updates when available.
+    startPoll(realtimeCfg ? 15000 : 3000);
   }
 
   if (document.readyState === "loading") {

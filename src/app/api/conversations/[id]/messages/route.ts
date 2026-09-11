@@ -3,6 +3,7 @@ import { z } from "zod";
 import { getActiveOrg } from "@/lib/auth";
 import { isDemoMode } from "@/lib/config";
 import { demoAddMessage, demoDb } from "@/lib/demo-store";
+import { notifyConversationRefresh } from "@/lib/notify-conversation";
 import { createClient } from "@/lib/supabase/server";
 
 type Params = { params: Promise<{ id: string }> };
@@ -76,6 +77,8 @@ export async function POST(req: Request, { params }: Params) {
       status: "open",
     })
     .eq("id", id);
+
+  await notifyConversationRefresh(id);
 
   return NextResponse.json({
     message: {
