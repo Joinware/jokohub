@@ -8,9 +8,15 @@ declare global {
   }
 }
 
-export function DemoWidgetLoader() {
+/** Pilot seed key when demo mode is off. Override with ?key= on /demo-widget. */
+const DEFAULT_WIDGET_KEY =
+  process.env.NEXT_PUBLIC_PILOT_WIDGET_KEY || "pk_live_pilot_dakar_01";
+
+export function DemoWidgetLoader({ widgetKey }: { widgetKey?: string }) {
   useEffect(() => {
-    window.JokoHubSettings = { key: "pk_demo_jokohub" };
+    const params = new URLSearchParams(window.location.search);
+    const key = widgetKey || params.get("key") || DEFAULT_WIDGET_KEY;
+    window.JokoHubSettings = { key };
     const existing = document.querySelector("script[data-jokohub-widget]");
     if (existing) return;
     const s = document.createElement("script");
@@ -18,6 +24,6 @@ export function DemoWidgetLoader() {
     s.async = true;
     s.dataset.jokohubWidget = "1";
     document.body.appendChild(s);
-  }, []);
+  }, [widgetKey]);
   return null;
 }

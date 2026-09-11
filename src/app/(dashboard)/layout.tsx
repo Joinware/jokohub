@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { LogoutButton } from "@/components/logout-button";
 import { getActiveOrg } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {
