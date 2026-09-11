@@ -220,28 +220,36 @@
   }
 
   async function refreshMessages() {
-    const url = new URL(`${apiBase}/api/widget/messages`, window.location.origin);
-    url.searchParams.set("key", key);
-    url.searchParams.set("sessionKey", sessionKey);
-    if (conversationId) url.searchParams.set("conversationId", conversationId);
-    const res = await fetch(url.toString());
-    if (!res.ok) return;
-    const data = await res.json();
-    conversationId = data.conversationId;
-    paintMessages(data.messages || []);
-    if (conversationId) void ensureRealtime(conversationId);
+    try {
+      const url = new URL(`${apiBase}/api/widget/messages`, window.location.origin);
+      url.searchParams.set("key", key);
+      url.searchParams.set("sessionKey", sessionKey);
+      if (conversationId) url.searchParams.set("conversationId", conversationId);
+      const res = await fetch(url.toString());
+      if (!res.ok) return;
+      const data = await res.json();
+      conversationId = data.conversationId;
+      paintMessages(data.messages || []);
+      if (conversationId) void ensureRealtime(conversationId);
+    } catch (err) {
+      console.warn("[JokoHub] messages unavailable", err);
+    }
   }
 
   async function bootstrap() {
-    const url = new URL(`${apiBase}/api/widget/bootstrap`, window.location.origin);
-    url.searchParams.set("key", key);
-    const res = await fetch(url.toString());
-    if (res.ok) {
-      const data = await res.json();
-      primary = (data.settings && data.settings.primaryColor) || primary;
-      greeting = (data.settings && data.settings.greeting) || greeting;
-      position = (data.settings && data.settings.position) || position;
-      realtimeCfg = data.realtime || null;
+    try {
+      const url = new URL(`${apiBase}/api/widget/bootstrap`, window.location.origin);
+      url.searchParams.set("key", key);
+      const res = await fetch(url.toString());
+      if (res.ok) {
+        const data = await res.json();
+        primary = (data.settings && data.settings.primaryColor) || primary;
+        greeting = (data.settings && data.settings.greeting) || greeting;
+        position = (data.settings && data.settings.position) || position;
+        realtimeCfg = data.realtime || null;
+      }
+    } catch (err) {
+      console.warn("[JokoHub] bootstrap unavailable", err);
     }
     render();
     // Slow poll as safety net; realtime broadcast drives fast updates when available.

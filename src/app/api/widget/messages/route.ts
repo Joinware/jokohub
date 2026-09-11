@@ -1,4 +1,3 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isDemoMode } from "@/lib/config";
 import {
@@ -10,6 +9,11 @@ import {
 } from "@/lib/demo-store";
 import { notifyConversationRefresh } from "@/lib/notify-conversation";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  jsonWithCors,
+  optionsWithCors,
+  originAllowed,
+} from "@/lib/widget-cors";
 
 const postSchema = z.object({
   key: z.string().min(8),
@@ -24,38 +28,64 @@ const getSchema = z.object({
   conversationId: z.string().optional(),
 });
 
+export async function OPTIONS(req: Request) {
+  return optionsWithCors(req.headers.get("origin"));
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  const origin = req.headers.get("origin");
   const parsed = getSchema.safeParse({
     key: url.searchParams.get("key"),
     sessionKey: url.searchParams.get("sessionKey"),
     conversationId: url.searchParams.get("conversationId") || undefined,
   });
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid query" }, { status: 400 });
+    return jsonWithCors({ error: "Invalid query" }, { status: 400, origin });
   }
 
   if (isDemoMode()) {
     const org = demoOrgByWidgetKey(parsed.data.key);
     if (!org) {
-      return NextResponse.json({ error: "Unknown widget key" }, { status: 404 });
+      return jsonWithCors(
+        { error: "Unknown widget key" },
+        { status: 404, origin }
+      );
+    }
+    if (!originAllowed(org.allowedOrigins, origin)) {
+      return jsonWithCors(
+        { error: "Origin not allowed" },
+        { status: 403, origin }
+      );
     }
     const visitor = demoEnsureVisitor(org.id, parsed.data.sessionKey);
     const convo = demoOpenOrCreateConversation(org.id, visitor.id);
-    return NextResponse.json({
-      conversationId: convo.id,
-      messages: demoListMessages(convo.id),
-    });
+    return jsonWithCors(
+      {
+        conversationId: convo.id,
+        messages: demoListMessages(convo.id),
+      },
+      { origin }
+    );
   }
 
   const admin = createAdminClient();
   const { data: org } = await admin
     .from("organizations")
-    .select("id")
+    .select("id, allowed_origins")
     .eq("widget_key", parsed.data.key)
     .maybeSingle();
   if (!org) {
-    return NextResponse.json({ error: "Unknown widget key" }, { status: 404 });
+    return jsonWithCors(
+      { error: "Unknown widget key" },
+      { status: 404, origin }
+    );
+  }
+  if (!originAllowed(org.allowed_origins || [], origin)) {
+    return jsonWithCors(
+      { error: "Origin not allowed" },
+      { status: 403, origin }
+    );
   }
 
   let { data: visitor } = await admin
@@ -78,7 +108,10 @@ export async function GET(req: Request) {
     visitor = inserted.data;
   }
   if (!visitor) {
-    return NextResponse.json({ error: "Visitor create failed" }, { status: 500 });
+    return jsonWithCors(
+      { error: "Visitor create failed" },
+      { status: 500, origin }
+    );
   }
 
   let { data: convo } = await admin
@@ -100,7 +133,10 @@ export async function GET(req: Request) {
     convo = inserted.data;
   }
   if (!convo) {
-    return NextResponse.json({ error: "Conversation create failed" }, { status: 500 });
+    return jsonWithCors(
+      { error: "Conversation create failed" },
+      { status: 500, origin }
+    );
   }
 
   const { data: messages } = await admin
@@ -109,30 +145,43 @@ export async function GET(req: Request) {
     .eq("conversation_id", convo.id)
     .order("created_at", { ascending: true });
 
-  return NextResponse.json({
-    conversationId: convo.id,
-    messages: (messages || []).map((m) => ({
-      id: m.id,
-      conversationId: m.conversation_id,
-      orgId: m.org_id,
-      senderType: m.sender_type,
-      senderUserId: m.sender_user_id,
-      body: m.body,
-      createdAt: m.created_at,
-    })),
-  });
+  return jsonWithCors(
+    {
+      conversationId: convo.id,
+      messages: (messages || []).map((m) => ({
+        id: m.id,
+        conversationId: m.conversation_id,
+        orgId: m.org_id,
+        senderType: m.sender_type,
+        senderUserId: m.sender_user_id,
+        body: m.body,
+        createdAt: m.created_at,
+      })),
+    },
+    { origin }
+  );
 }
 
 export async function POST(req: Request) {
+  const origin = req.headers.get("origin");
   const parsed = postSchema.safeParse(await req.json());
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid body" }, { status: 400 });
+    return jsonWithCors({ error: "Invalid body" }, { status: 400, origin });
   }
 
   if (isDemoMode()) {
     const org = demoOrgByWidgetKey(parsed.data.key);
     if (!org) {
-      return NextResponse.json({ error: "Unknown widget key" }, { status: 404 });
+      return jsonWithCors(
+        { error: "Unknown widget key" },
+        { status: 404, origin }
+      );
+    }
+    if (!originAllowed(org.allowedOrigins, origin)) {
+      return jsonWithCors(
+        { error: "Origin not allowed" },
+        { status: 403, origin }
+      );
     }
     const visitor = demoEnsureVisitor(
       org.id,
@@ -144,7 +193,7 @@ export async function POST(req: Request) {
       demoAddMessage(convo.id, org.id, "system", org.widgetSettings.greeting);
     }
     const message = demoAddMessage(convo.id, org.id, "visitor", parsed.data.body);
-    return NextResponse.json({ conversationId: convo.id, message });
+    return jsonWithCors({ conversationId: convo.id, message }, { origin });
   }
 
   const admin = createAdminClient();
@@ -154,7 +203,16 @@ export async function POST(req: Request) {
     .eq("widget_key", parsed.data.key)
     .maybeSingle();
   if (!org) {
-    return NextResponse.json({ error: "Unknown widget key" }, { status: 404 });
+    return jsonWithCors(
+      { error: "Unknown widget key" },
+      { status: 404, origin }
+    );
+  }
+  if (!originAllowed(org.allowed_origins || [], origin)) {
+    return jsonWithCors(
+      { error: "Origin not allowed" },
+      { status: 403, origin }
+    );
   }
 
   let { data: visitor } = await admin
@@ -177,7 +235,10 @@ export async function POST(req: Request) {
     visitor = inserted.data;
   }
   if (!visitor) {
-    return NextResponse.json({ error: "Visitor create failed" }, { status: 500 });
+    return jsonWithCors(
+      { error: "Visitor create failed" },
+      { status: 500, origin }
+    );
   }
 
   let { data: convo } = await admin
@@ -199,7 +260,10 @@ export async function POST(req: Request) {
     convo = inserted.data;
   }
   if (!convo) {
-    return NextResponse.json({ error: "Conversation create failed" }, { status: 500 });
+    return jsonWithCors(
+      { error: "Conversation create failed" },
+      { status: 500, origin }
+    );
   }
 
   const { count } = await admin
@@ -228,7 +292,10 @@ export async function POST(req: Request) {
     .single();
 
   if (error || !message) {
-    return NextResponse.json({ error: error?.message || "Send failed" }, { status: 500 });
+    return jsonWithCors(
+      { error: error?.message || "Send failed" },
+      { status: 500, origin }
+    );
   }
 
   await admin
@@ -242,16 +309,19 @@ export async function POST(req: Request) {
 
   await notifyConversationRefresh(convo.id);
 
-  return NextResponse.json({
-    conversationId: convo.id,
-    message: {
-      id: message.id,
-      conversationId: message.conversation_id,
-      orgId: message.org_id,
-      senderType: message.sender_type,
-      senderUserId: message.sender_user_id,
-      body: message.body,
-      createdAt: message.created_at,
+  return jsonWithCors(
+    {
+      conversationId: convo.id,
+      message: {
+        id: message.id,
+        conversationId: message.conversation_id,
+        orgId: message.org_id,
+        senderType: message.sender_type,
+        senderUserId: message.sender_user_id,
+        body: message.body,
+        createdAt: message.created_at,
+      },
     },
-  });
+    { origin }
+  );
 }

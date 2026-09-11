@@ -1,42 +1,55 @@
-import { NextResponse } from "next/server";
 import { z } from "zod";
 import { isDemoMode } from "@/lib/config";
 import { demoOrgByWidgetKey } from "@/lib/demo-store";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+  jsonWithCors,
+  optionsWithCors,
+  originAllowed,
+} from "@/lib/widget-cors";
 
 const querySchema = z.object({
   key: z.string().min(8),
 });
 
-function originAllowed(allowed: string[], origin: string | null) {
-  if (!origin) return true;
-  if (allowed.includes("*")) return true;
-  return allowed.some((o) => o === origin || o === "*");
+export async function OPTIONS(req: Request) {
+  return optionsWithCors(req.headers.get("origin"));
 }
 
 export async function GET(req: Request) {
   const url = new URL(req.url);
+  const origin = req.headers.get("origin");
   const parsed = querySchema.safeParse({ key: url.searchParams.get("key") });
   if (!parsed.success) {
-    return NextResponse.json({ error: "Missing widget key" }, { status: 400 });
+    return jsonWithCors(
+      { error: "Missing widget key" },
+      { status: 400, origin }
+    );
   }
-
-  const origin = req.headers.get("origin");
 
   if (isDemoMode()) {
     const org = demoOrgByWidgetKey(parsed.data.key);
     if (!org) {
-      return NextResponse.json({ error: "Unknown widget key" }, { status: 404 });
+      return jsonWithCors(
+        { error: "Unknown widget key" },
+        { status: 404, origin }
+      );
     }
     if (!originAllowed(org.allowedOrigins, origin)) {
-      return NextResponse.json({ error: "Origin not allowed" }, { status: 403 });
+      return jsonWithCors(
+        { error: "Origin not allowed" },
+        { status: 403, origin }
+      );
     }
-    return NextResponse.json({
-      orgId: org.id,
-      name: org.name,
-      settings: org.widgetSettings,
-      realtime: null,
-    });
+    return jsonWithCors(
+      {
+        orgId: org.id,
+        name: org.name,
+        settings: org.widgetSettings,
+        realtime: null,
+      },
+      { origin }
+    );
   }
 
   const admin = createAdminClient();
@@ -47,22 +60,31 @@ export async function GET(req: Request) {
     .maybeSingle();
 
   if (!org) {
-    return NextResponse.json({ error: "Unknown widget key" }, { status: 404 });
+    return jsonWithCors(
+      { error: "Unknown widget key" },
+      { status: 404, origin }
+    );
   }
   if (!originAllowed(org.allowed_origins || [], origin)) {
-    return NextResponse.json({ error: "Origin not allowed" }, { status: 403 });
+    return jsonWithCors(
+      { error: "Origin not allowed" },
+      { status: 403, origin }
+    );
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || null;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || null;
 
-  return NextResponse.json({
-    orgId: org.id,
-    name: org.name,
-    settings: org.widget_settings,
-    realtime:
-      supabaseUrl && supabaseAnonKey
-        ? { url: supabaseUrl, anonKey: supabaseAnonKey }
-        : null,
-  });
+  return jsonWithCors(
+    {
+      orgId: org.id,
+      name: org.name,
+      settings: org.widget_settings,
+      realtime:
+        supabaseUrl && supabaseAnonKey
+          ? { url: supabaseUrl, anonKey: supabaseAnonKey }
+          : null,
+    },
+    { origin }
+  );
 }
