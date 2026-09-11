@@ -31,6 +31,10 @@ Open:
 
 See [docs/DEPLOY.md](./docs/DEPLOY.md). Apply `supabase/migrations/001_init.sql`, set `DEMO_MODE=false`, add Supabase + Stripe test keys.
 
+## Roadmap
+
+See [docs/IMPLEMENTATION_PLAN.md](./docs/IMPLEMENTATION_PLAN.md) (pilot hardening, invites, realtime, RCS-lite, optional WoLink).
+
 ## Support
 
 Default contact: `support@jokohub.app` (override with `NEXT_PUBLIC_SUPPORT_EMAIL`).
