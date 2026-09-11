@@ -6,7 +6,29 @@
     return;
   }
 
-  const apiBase = settings.apiBase || "";
+  // Prefer explicit apiBase; otherwise use the origin that served widget.js
+  // so cross-origin embeds (e.g. Netlify shop → Vercel widget) work without
+  // requiring apiBase in the host-page snippet.
+  function resolveApiBase() {
+    if (settings.apiBase) return String(settings.apiBase).replace(/\/$/, "");
+    const script =
+      document.currentScript instanceof HTMLScriptElement
+        ? document.currentScript
+        : document.querySelector(
+            'script[src*="/widget.js"], script[src$="widget.js"], script[data-jokohub-widget]'
+          );
+    const src = script && "src" in script ? script.src : "";
+    if (src) {
+      try {
+        return new URL(src).origin;
+      } catch {
+        /* ignore */
+      }
+    }
+    return "";
+  }
+
+  const apiBase = resolveApiBase();
   const storageKey = `jokohub_session_${key}`;
   let sessionKey = localStorage.getItem(storageKey);
   if (!sessionKey) {
