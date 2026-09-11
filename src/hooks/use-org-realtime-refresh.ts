@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useEffectEvent } from "react";
+import { useEffect, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 function isBrowserDemoMode() {
@@ -18,13 +18,16 @@ export function useOrgRealtimeRefresh(options: {
   /** Slow safety net when realtime drops (ms). Default 30s; 0 disables. */
   fallbackMs?: number;
 }) {
-  const { orgId, conversationId = null, fallbackMs = 30_000 } = options;
-  const onRefresh = useEffectEvent(options.onRefresh);
+  const { orgId, conversationId = null, fallbackMs = 30_000, onRefresh } = options;
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
 
   useEffect(() => {
+    const fire = () => onRefreshRef.current();
+
     if (!orgId || isBrowserDemoMode()) {
       if (!orgId || fallbackMs <= 0) return;
-      const t = setInterval(() => onRefresh(), fallbackMs);
+      const t = setInterval(fire, fallbackMs);
       return () => clearInterval(t);
     }
 
@@ -43,7 +46,7 @@ export function useOrgRealtimeRefresh(options: {
           table: "conversations",
           filter: `org_id=eq.${orgId}`,
         },
-        () => onRefresh()
+        fire
       )
       .on(
         "postgres_changes",
@@ -60,12 +63,12 @@ export function useOrgRealtimeRefresh(options: {
               table: "messages",
               filter: `org_id=eq.${orgId}`,
             },
-        () => onRefresh()
+        fire
       )
       .subscribe();
 
     const fallback =
-      fallbackMs > 0 ? setInterval(() => onRefresh(), fallbackMs) : null;
+      fallbackMs > 0 ? setInterval(fire, fallbackMs) : null;
 
     return () => {
       if (fallback) clearInterval(fallback);
