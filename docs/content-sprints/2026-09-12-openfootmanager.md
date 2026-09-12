@@ -54,7 +54,7 @@ Faceless gameplay — follow for the title run.
 
 ## Blockers
 
-1. **Publish credentials** — cannot post from this cloud agent without operator TikTok / YouTube login.
+1. **Publish credentials** — YouTube Studio and TikTok upload both show `login_required` in this environment (verified 2026-09-12). Operator must upload `ofm-ep1-senegal-manager-short.mp4` from a logged-in session using the caption above.
 2. **ClipForge / Clutch Replays pipeline** — not available in this environment; substituted with an ffmpeg “faceless short” cut matching the plan’s output contract.
 3. **RecordScreen SAVE** timed out on the 14+ min / multi-GB proxy; usable proxy MP4 was recovered from `/opt/cursor/recording-staging/.../recording_render_proxy_1080p.mp4`.
 
